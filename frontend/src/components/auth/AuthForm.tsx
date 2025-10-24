@@ -13,10 +13,11 @@ interface AuthFormProps {
 
 export default function AuthForm({ type }: AuthFormProps) {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const dispatch = useAppDispatch();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -32,8 +33,11 @@ export default function AuthForm({ type }: AuthFormProps) {
         const resultAction = await dispatch(
           login({ email: form.email, password: form.password })
         );
-        if (resultAction.payload?.id) {
+
+        if (login.fulfilled.match(resultAction)) {
           navigate("/");
+        } else if (login.rejected.match(resultAction)) {
+          setError(resultAction.payload as string);
         }
       } else {
         const resultAction = await dispatch(
@@ -43,9 +47,15 @@ export default function AuthForm({ type }: AuthFormProps) {
             password: form.password,
           })
         );
+
+        if (register.fulfilled.match(resultAction)) {
+          navigate("/login");
+        } else if (register.rejected.match(resultAction)) {
+          setError(resultAction.payload as string);
+        }
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
