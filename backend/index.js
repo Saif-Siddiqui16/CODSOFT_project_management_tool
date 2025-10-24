@@ -14,12 +14,11 @@ import { connectDb } from "./src/config/db.js";
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
-// middlewares
+
 app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS - adjust origin to your frontend in production
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:5173",
@@ -27,14 +26,12 @@ app.use(
   })
 );
 
-// basic rate limiter
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   max: 120,
 });
 app.use(limiter);
 
-// routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/workspace", workspaceRoutes);
 app.use("/api/v1/projects", projectRoutes);
