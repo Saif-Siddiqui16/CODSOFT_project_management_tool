@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import CreateWorkspaceCard from "@/components/workspace/CreateWorkspaceCard";
 import { useAppDispatch, useAppSelector } from "@/hooks/hook";
 import {
@@ -9,6 +10,7 @@ import {
   deleteWorkspace,
   fetchWorkspaces,
 } from "@/store/workspace/workspace-slice";
+import { Trash } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -94,8 +96,7 @@ const WorkspacePage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {workspaces.map((workspace) => {
             const progress = workspaceProgress[workspace._id] || 0;
-            const isOwner = workspace.owner === user?._id;
-
+            const isOwner = workspace.owner === user?.id;
             return (
               <div
                 key={workspace._id}
@@ -117,15 +118,16 @@ const WorkspacePage = () => {
                 </div>
 
                 {isOwner && (
-                  <button
+                  <Button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(workspace._id);
                     }}
-                    className="absolute top-2 right-2 text-red-600 hover:text-red-800 font-semibold"
+                    variant="destructive"
+                    className="absolute top-2 right-2  font-semibold"
                   >
-                    Delete
-                  </button>
+                    <Trash />
+                  </Button>
                 )}
               </div>
             );
