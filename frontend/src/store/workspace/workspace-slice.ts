@@ -21,7 +21,6 @@ const initialState: WorkspaceState = {
   loading: false,
   projects: [],
 };
-
 export const fetchWorkspaces = createAsyncThunk(
   "workspace/fetchAll",
   async () => {

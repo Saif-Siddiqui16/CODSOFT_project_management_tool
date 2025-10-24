@@ -24,7 +24,6 @@ export const register = asyncHandler(async (req, res) => {
 
   const hashed = await bcrypt.hash(password, 10);
   const user = await User.create({ name, email, password: hashed });
-  console.log(user);
   const verificationToken = jwt.sign(
     { id: user._id, purpose: "email-verification" },
     process.env.JWT_SECRET,
@@ -66,7 +65,6 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password } = parse.data;
   const user = await User.findOne({ email });
   if (!user) return res.status(400).json({ message: "Invalid credentials" });
-  console.log("user", user);
   if (!user.isEmailVerified) {
     const existingVerification = await Verification.findOne({
       userId: user._id,
@@ -126,8 +124,8 @@ export const login = asyncHandler(async (req, res) => {
 
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: COOKIE_SECURE,
-    sameSite: COOKIE_SAME_SITE,
+    secure: true,
+    sameSite: "none",
     maxAge: 1000 * 60 * 60 * 24 * 7,
   });
 
