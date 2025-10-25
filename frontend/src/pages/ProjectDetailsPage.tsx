@@ -25,7 +25,7 @@ import {
   updateTaskTitle,
   type Task,
 } from "@/store/task/task-slice";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 const ProjectDetailsPage = () => {
@@ -49,17 +49,16 @@ const ProjectDetailsPage = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Fetch tasks
   const fetchProjectTasks = useCallback(() => {
-    if (!projectId) return;
-    dispatch(fetchTasks(projectId));
+    if (projectId) dispatch(fetchTasks(projectId));
   }, [dispatch, projectId]);
 
   useEffect(() => {
     fetchProjectTasks();
-    const interval = setInterval(fetchProjectTasks, 5000);
-    return () => clearInterval(interval);
   }, [fetchProjectTasks]);
 
+  // Fetch project members
   useEffect(() => {
     if (!projectId) return;
     const fetchMembers = async () => {
@@ -77,17 +76,20 @@ const ProjectDetailsPage = () => {
     fetchMembers();
   }, [dispatch, projectId]);
 
+  const projectTasks = useMemo(() => {
+    return projectId ? tasks[projectId] || [] : [];
+  }, [tasks, projectId]);
+
+  const visibleTasks = useMemo(() => {
+    return projectTasks.filter((task) => {
+      const isCreator = String(task.createdBy) === String(user?._id);
+      const isAssignee = task.assignees?.some(
+        (a) => String(typeof a === "string" ? a : a._id) === String(user?._id)
+      );
+      return isCreator || isAssignee;
+    });
+  }, [projectTasks, user?._id]);
   if (!projectId) return <p>Project not found</p>;
-
-  const projectTasks = tasks[projectId] || [];
-
-  const visibleTasks = projectTasks.filter((task) => {
-    const isCreator = String(task.createdBy) === String(user?._id);
-    const isAssignee = task.assignees?.some(
-      (a) => String(typeof a === "string" ? a : a._id) === String(user?._id)
-    );
-    return isCreator || isAssignee;
-  });
 
   const handleDelete = async (taskId: string) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
@@ -95,6 +97,7 @@ const ProjectDetailsPage = () => {
       const res = await dispatch(deleteTask(taskId));
       if (res.meta.requestStatus === "fulfilled") {
         setSuccessMessage("✅ Task deleted successfully!");
+        fetchProjectTasks(); // optimistic refresh
       } else setError("❌ Failed to delete task.");
     } catch {
       setError("❌ Something went wrong while deleting the task.");
@@ -107,8 +110,7 @@ const ProjectDetailsPage = () => {
   };
 
   const handleEdit = (task: Task) => {
-    const isCreator = task.createdBy === user?._id;
-
+    const isCreator = String(task.createdBy) === String(user?._id);
     setSelectedTask(task);
     setEditForm({
       title: isCreator ? task.title : "",
@@ -132,7 +134,7 @@ const ProjectDetailsPage = () => {
   const handleSave = async () => {
     if (!selectedTask) return;
 
-    const isCreator = selectedTask.createdBy === user?._id;
+    const isCreator = String(selectedTask.createdBy) === String(user?._id);
     const isAssignee = selectedTask.assignees?.some((a) =>
       typeof a === "string" ? a === user?._id : a._id === user?._id
     );
@@ -192,6 +194,7 @@ const ProjectDetailsPage = () => {
 
       setSuccessMessage("✅ Task updated successfully!");
       setOpen(false);
+      fetchProjectTasks(); // optimistic refresh
     } catch {
       setError("❌ Failed to update the task.");
     } finally {
@@ -206,6 +209,7 @@ const ProjectDetailsPage = () => {
     <div className="p-6 min-h-screen bg-gray-50">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Project Details</h1>
+        {/* Keep CreateTaskCard exactly as-is */}
         <CreateTaskCard projectId={projectId} />
       </div>
 
@@ -224,8 +228,8 @@ const ProjectDetailsPage = () => {
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {visibleTasks.map((task: Task) => {
-            const isCreator = task.createdBy === user?._id;
+          {visibleTasks.map((task) => {
+            const isCreator = String(task.createdBy) === String(user?._id);
             const isAssignee = task.assignees?.some((a) =>
               typeof a === "string" ? a === user?._id : a._id === user?._id
             );
@@ -274,7 +278,8 @@ const ProjectDetailsPage = () => {
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {selectedTask && selectedTask.createdBy === user?._id ? (
+            {selectedTask &&
+            String(selectedTask.createdBy) === String(user?._id) ? (
               <>
                 <div>
                   <Label>Title</Label>

@@ -112,9 +112,12 @@ const WorkspacePage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {workspaces.map((workspace) => {
             const progress = workspaceProgress[workspace._id] || 0;
-            const isOwner =
-              String(workspace.owner?._id || workspace.owner) ===
-              String(user?.id);
+            const ownerId =
+              typeof workspace.owner === "string"
+                ? workspace.owner
+                : workspace.owner?._id;
+
+            const isOwner = String(ownerId) === String(user?._id);
             const isLoading = loadingProgressMap[workspace._id];
 
             return (
