@@ -20,6 +20,8 @@ const WorkspaceInvitePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [showError, setShowError] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const errorTimer = useRef<number | null>(null);
   const successTimer = useRef<number | null>(null);
@@ -32,6 +34,8 @@ const WorkspaceInvitePage: React.FC = () => {
   const handleAcceptInvite = async () => {
     if (!token || !workspaceId) {
       setError("Invalid or expired invitation link.");
+      setShowError(true);
+      errorTimer.current = window.setTimeout(() => setShowError(false), 4800);
       return;
     }
 
@@ -43,16 +47,22 @@ const WorkspaceInvitePage: React.FC = () => {
 
       if (response.meta.requestStatus === "fulfilled") {
         setSuccess("🎉 Invitation accepted!");
-        successTimer.current = window.setTimeout(() => setSuccess(""), 5000);
+        setShowSuccess(true);
+        successTimer.current = window.setTimeout(
+          () => setShowSuccess(false),
+          4800
+        );
       } else {
         const errMsg =
           (response.payload as string) || "Failed to accept invitation.";
         setError(errMsg);
-        errorTimer.current = window.setTimeout(() => setError(""), 5000);
+        setShowError(true);
+        errorTimer.current = window.setTimeout(() => setShowError(false), 4800);
       }
     } catch {
       setError("Something went wrong while accepting the invitation.");
-      errorTimer.current = window.setTimeout(() => setError(""), 5000);
+      setShowError(true);
+      errorTimer.current = window.setTimeout(() => setShowError(false), 4800);
     } finally {
       setLoading(false);
     }
@@ -75,19 +85,27 @@ const WorkspaceInvitePage: React.FC = () => {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 mt-4">
-          {error && (
-            <p className="text-red-600 text-center transition-opacity duration-500">
+          {showError && (
+            <p
+              className={`text-red-600 text-center transition-opacity duration-700 ${
+                showError ? "opacity-100" : "opacity-0"
+              }`}
+            >
               {error}
             </p>
           )}
 
-          {success && (
-            <p className="text-green-600 text-center transition-opacity duration-500">
+          {showSuccess && (
+            <p
+              className={`text-green-600 text-center transition-opacity duration-700 ${
+                showSuccess ? "opacity-100" : "opacity-0"
+              }`}
+            >
               {success}
             </p>
           )}
 
-          {!success && !error && (
+          {!showSuccess && !showError && (
             <Button
               onClick={handleAcceptInvite}
               disabled={loading}
