@@ -6,6 +6,7 @@ interface Invite {
   user: any;
   role: string;
 }
+
 interface Workspace {
   _id: string;
   name: string;
@@ -30,6 +31,9 @@ const initialState: WorkspaceState = {
   loading: false,
   projects: [],
 };
+
+// --- Async Thunks ---
+
 export const fetchWorkspaces = createAsyncThunk(
   "workspace/fetchAll",
   async () => {
@@ -134,6 +138,7 @@ export const deleteWorkspace = createAsyncThunk(
     return workspaceId;
   }
 );
+
 export const cancelInvite = createAsyncThunk(
   "workspace/cancelInvite",
   async ({ workspaceId, token }: { workspaceId: string; token: string }) => {
@@ -145,6 +150,8 @@ export const cancelInvite = createAsyncThunk(
     return { workspaceId, token, message: data.message };
   }
 );
+
+// --- Slice ---
 
 const workspaceSlice = createSlice({
   name: "workspace",
@@ -162,14 +169,13 @@ const workspaceSlice = createSlice({
         state.currentWorkspace = action.payload;
       })
       .addCase(removeMember.fulfilled, (state, action) => {
+        const { workspaceId, userId } = action.payload;
         if (
           state.currentWorkspace &&
-          state.currentWorkspace._id === action.payload.workspaceId
+          state.currentWorkspace._id === workspaceId
         ) {
           state.currentWorkspace.members =
-            state.currentWorkspace.members.filter(
-              (m) => m.user._id !== action.payload.userId
-            );
+            state.currentWorkspace.members.filter((m) => m.user._id !== userId);
         }
       })
       .addCase(fetchWorkspaceProjects.fulfilled, (state, action) => {
@@ -180,7 +186,6 @@ const workspaceSlice = createSlice({
         state.workspaces = state.workspaces.filter(
           (w) => w._id !== action.payload
         );
-
         if (state.currentWorkspace?._id === action.payload) {
           state.currentWorkspace = undefined;
           state.projects = [];
@@ -188,21 +193,15 @@ const workspaceSlice = createSlice({
       })
       .addCase(cancelInvite.fulfilled, (state, action) => {
         const { workspaceId, token, message } = action.payload;
-
-        // Remove canceled invite from currentWorkspace.invites if it exists
         if (
           state.currentWorkspace &&
           state.currentWorkspace._id === workspaceId
         ) {
-          if (state.currentWorkspace.invites) {
-            state.currentWorkspace.invites =
-              state.currentWorkspace.invites.filter(
-                (invite) => invite.token !== token
-              );
-          }
+          state.currentWorkspace.invites =
+            state.currentWorkspace.invites?.filter(
+              (invite) => invite.token !== token
+            );
         }
-
-        // Store a message to show in the UI
         state.cancelMessage = message;
       });
   },

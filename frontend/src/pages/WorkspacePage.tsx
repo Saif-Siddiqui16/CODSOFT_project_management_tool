@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
 } from "@/store/workspace/workspace-slice";
 import type { RootState } from "@/store/store";
 
+const POLLING_INTERVAL = 5000; // 5 seconds
+
 const WorkspacePage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -28,19 +30,31 @@ const WorkspacePage = () => {
   const [loadingProgressMap, setLoadingProgressMap] = useState<
     Record<string, boolean>
   >({});
-
-  useEffect(() => {
+  const pollingRef = useRef<number | null>(null);
+  const fetchAllWorkspaces = useCallback(() => {
     dispatch(fetchWorkspaces());
   }, [dispatch]);
 
   useEffect(() => {
-    if (workspaces.length > 0) {
-      workspaces.forEach((ws) => {
-        dispatch(fetchProjects(ws._id));
-      });
-    }
+    fetchAllWorkspaces();
+
+    pollingRef.current = window.setInterval(() => {
+      fetchAllWorkspaces();
+    }, POLLING_INTERVAL);
+
+    return () => {
+      if (pollingRef.current) window.clearInterval(pollingRef.current);
+    };
+  }, [fetchAllWorkspaces]);
+
+  // Fetch projects for each workspace
+  useEffect(() => {
+    workspaces.forEach((ws) => {
+      dispatch(fetchProjects(ws._id));
+    });
   }, [workspaces, dispatch]);
 
+  // Fetch progress for all projects
   useEffect(() => {
     const fetchAllProgress = async () => {
       if (projects.length === 0) return;
@@ -69,7 +83,6 @@ const WorkspacePage = () => {
 
         const avgProgress: Record<string, number> = {};
         const doneMap: Record<string, boolean> = {};
-
         for (const wsId in progressMap) {
           const arr = progressMap[wsId];
           avgProgress[wsId] = Math.round(
@@ -86,14 +99,32 @@ const WorkspacePage = () => {
     };
 
     fetchAllProgress();
-  }, [projects, dispatch, workspaces]);
+  }, [projects, workspaces, dispatch]);
 
+  // Optimistic delete
   const handleDelete = async (workspaceId: string) => {
-    if (window.confirm("Are you sure you want to delete this workspace?")) {
+    if (!window.confirm("Are you sure you want to delete this workspace?"))
+      return;
+
+    // Remove workspace locally first for instant UI feedback
+    const removedWorkspace = workspaces.find((w) => w._id === workspaceId);
+    if (removedWorkspace) {
+      setWorkspaceProgress((prev) => {
+        const copy = { ...prev };
+        delete copy[workspaceId];
+        return copy;
+      });
+    }
+
+    try {
       const resultAction = await dispatch(deleteWorkspace(workspaceId));
-      if (deleteWorkspace.fulfilled.match(resultAction)) {
-        dispatch(fetchWorkspaces());
+      if (!deleteWorkspace.fulfilled.match(resultAction)) {
+        // rollback if failed
+        fetchAllWorkspaces();
       }
+    } catch (err) {
+      console.error("Failed to delete workspace:", err);
+      fetchAllWorkspaces(); // rollback
     }
   };
 
@@ -116,7 +147,6 @@ const WorkspacePage = () => {
               typeof workspace.owner === "string"
                 ? workspace.owner
                 : workspace.owner?._id;
-
             const isOwner = String(ownerId) === String(user?._id);
             const isLoading = loadingProgressMap[workspace._id];
 
