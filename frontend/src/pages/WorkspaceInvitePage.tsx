@@ -18,59 +18,54 @@ const WorkspaceInvitePage: React.FC = () => {
 
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState("");
-  const [error, setError] = useState("");
-  const [showError, setShowError] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [visible, setVisible] = useState(false);
 
-  const errorTimer = useRef<number | null>(null);
-  const successTimer = useRef<number | null>(null);
+  const timerRef = useRef<number | null>(null);
 
-  const clearTimers = () => {
-    if (errorTimer.current) clearTimeout(errorTimer.current);
-    if (successTimer.current) clearTimeout(successTimer.current);
+  const clearTimer = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
   };
 
   const handleAcceptInvite = async () => {
     if (!token || !workspaceId) {
-      setError("Invalid or expired invitation link.");
-      setShowError(true);
-      errorTimer.current = window.setTimeout(() => setShowError(false), 4800);
+      setIsError(true);
+      setMessage("Invalid or expired invitation link.");
+      setVisible(true);
+      timerRef.current = window.setTimeout(() => setVisible(false), 5000);
       return;
     }
 
     setLoading(true);
-    clearTimers();
+    clearTimer();
 
     try {
       const response = await dispatch(acceptInvite({ token, workspaceId }));
 
       if (response.meta.requestStatus === "fulfilled") {
-        setSuccess("🎉 Invitation accepted!");
-        setShowSuccess(true);
-        successTimer.current = window.setTimeout(
-          () => setShowSuccess(false),
-          4800
-        );
+        setIsError(false);
+        setMessage("🎉 Invitation accepted!");
       } else {
-        const errMsg =
-          (response.payload as string) || "Failed to accept invitation.";
-        setError(errMsg);
-        setShowError(true);
-        errorTimer.current = window.setTimeout(() => setShowError(false), 4800);
+        setIsError(true);
+        setMessage(
+          (response.payload as string) || "Failed to accept invitation."
+        );
       }
+
+      setVisible(true);
+      timerRef.current = window.setTimeout(() => setVisible(false), 5000);
     } catch {
-      setError("Something went wrong while accepting the invitation.");
-      setShowError(true);
-      errorTimer.current = window.setTimeout(() => setShowError(false), 4800);
+      setIsError(true);
+      setMessage("Something went wrong while accepting the invitation.");
+      setVisible(true);
+      timerRef.current = window.setTimeout(() => setVisible(false), 5000);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    return () => clearTimers();
-  }, []);
+  useEffect(() => clearTimer, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -85,27 +80,16 @@ const WorkspaceInvitePage: React.FC = () => {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 mt-4">
-          {showError && (
-            <p
-              className={`text-red-600 text-center transition-opacity duration-700 ${
-                showError ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              {error}
-            </p>
-          )}
+          {/* message area always present */}
+          <p
+            className={`text-center transition-opacity duration-700 ${
+              visible ? "opacity-100" : "opacity-0"
+            } ${isError ? "text-red-600" : "text-green-600"}`}
+          >
+            {message}
+          </p>
 
-          {showSuccess && (
-            <p
-              className={`text-green-600 text-center transition-opacity duration-700 ${
-                showSuccess ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              {success}
-            </p>
-          )}
-
-          {!showSuccess && !showError && (
+          {!visible && (
             <Button
               onClick={handleAcceptInvite}
               disabled={loading}
