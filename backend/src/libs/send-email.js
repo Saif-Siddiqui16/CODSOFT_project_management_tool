@@ -12,14 +12,15 @@ const mg = mailgun.client({
   url: "https://api.mailgun.net",
 });
 
-// Keep the same sendMail signature
-const sendMail = async ({ to, subject, html }) => {
+const sendMail = async ({ to, subject, html, text }) => {
   try {
+    const plainText = text || html.replace(/<[^>]+>/g, "");
     const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
       from: process.env.MAILGUN_FROM,
       to,
       subject,
       html,
+      text: plainText,
     });
     return { ok: true, info: result };
   } catch (error) {

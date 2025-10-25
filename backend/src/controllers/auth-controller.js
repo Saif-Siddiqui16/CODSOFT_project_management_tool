@@ -39,12 +39,27 @@ export const register = asyncHandler(async (req, res) => {
   });
 
   const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-  const emailBody = `<p>Click <a href="${verificationLink}">here</a> to verify your email</p>`;
+  const emailBody = `
+    <p>Hello ${name || ""},</p>
+    <p>Click the link below to verify your email:</p>
+    <p><a href="${verificationLink}">${verificationLink}</a></p>
+    <p>If you did not sign up, you can ignore this email.</p>
+  `;
+
+  const textBody = `
+Hello ${name || ""},
+
+Click the link below to verify your email:
+${verificationLink}
+
+If you did not sign up, you can ignore this email.
+  `;
 
   const isEmailSent = await sendMail({
     to: email,
     subject: "Verify your email",
     html: emailBody,
+    text: textBody,
   });
   if (!isEmailSent)
     return res
