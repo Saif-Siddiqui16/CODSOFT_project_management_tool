@@ -12,6 +12,7 @@ import taskRoutes from "./src/routes/task-route.js";
 import errorHandler from "./src/middleware/errorHandler.js";
 import { connectDb } from "./src/config/db.js";
 import path from "path";
+import sendMail from "./src/libs/send-email.js";
 
 dotenv.config();
 const app = express();
