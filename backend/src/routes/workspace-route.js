@@ -2,6 +2,7 @@ import express from "express";
 import {
   acceptGenerateInvite,
   acceptInviteByToken,
+  cancelInviteByToken,
   createWorkspace,
   deleteWorkspace,
   getWorkspaceDetails,
@@ -19,6 +20,7 @@ router.get("/:workspaceId", authMiddleware, getWorkspaceDetails);
 
 router.post("/:workspaceId/invite", authMiddleware, inviteUserToWorkspace);
 router.post("/:workspaceId/invite/accept", authMiddleware, acceptInviteByToken);
+router.post("/:workspaceId/invite/cancel", authMiddleware, cancelInviteByToken);
 router.post(
   "/:workspaceId/accept-generate-invite",
   authMiddleware,

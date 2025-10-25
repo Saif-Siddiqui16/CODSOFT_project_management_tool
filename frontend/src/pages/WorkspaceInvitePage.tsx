@@ -7,9 +7,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAppDispatch } from "@/hooks/hook";
-import { acceptInvite } from "@/store/workspace/workspace-slice";
+import { acceptInvite, cancelInvite } from "@/store/workspace/workspace-slice";
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 
 const WorkspaceInvitePage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +17,8 @@ const WorkspaceInvitePage: React.FC = () => {
   const { workspaceId } = useParams();
 
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -28,38 +30,63 @@ const WorkspaceInvitePage: React.FC = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
   };
 
+  const showMessage = (msg: string, error = false, redirect?: boolean) => {
+    setMessage(msg);
+    setIsError(error);
+    setVisible(true);
+
+    clearTimer();
+    timerRef.current = window.setTimeout(() => {
+      setVisible(false);
+      if (redirect && workspaceId) navigate(`/workspace/${workspaceId}`);
+    }, 3000);
+  };
+
   const handleAcceptInvite = async () => {
     if (!token || !workspaceId) {
-      setIsError(true);
-      setMessage("Invalid or expired invitation link.");
-      setVisible(true);
-      timerRef.current = window.setTimeout(() => setVisible(false), 5000);
+      showMessage("Invalid or expired invitation link.", true);
       return;
     }
 
     setLoading(true);
-    clearTimer();
-
     try {
-      const response = await dispatch(acceptInvite({ token, workspaceId }));
+      const response = await dispatch(acceptInvite({ workspaceId, token }));
 
       if (response.meta.requestStatus === "fulfilled") {
-        setIsError(false);
-        setMessage("🎉 Invitation accepted!");
+        showMessage("🎉 Invitation accepted!", false, true);
       } else {
-        setIsError(true);
-        setMessage(
-          (response.payload as string) || "Failed to accept invitation."
+        showMessage(
+          (response.payload as string) || "Failed to accept invitation.",
+          true
         );
       }
-
-      setVisible(true);
-      timerRef.current = window.setTimeout(() => setVisible(false), 5000);
     } catch {
-      setIsError(true);
-      setMessage("Something went wrong while accepting the invitation.");
-      setVisible(true);
-      timerRef.current = window.setTimeout(() => setVisible(false), 5000);
+      showMessage("Something went wrong while accepting the invitation.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelInvite = async () => {
+    if (!token || !workspaceId) {
+      showMessage("Invalid or expired invitation link.", true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await dispatch(cancelInvite({ workspaceId, token }));
+
+      if (response.meta.requestStatus === "fulfilled") {
+        showMessage("❌ Invitation canceled.", false, true);
+      } else {
+        showMessage(
+          (response.payload as string) || "Failed to cancel invitation.",
+          true
+        );
+      }
+    } catch {
+      showMessage("Something went wrong while canceling the invitation.", true);
     } finally {
       setLoading(false);
     }
@@ -80,7 +107,7 @@ const WorkspaceInvitePage: React.FC = () => {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 mt-4">
-          {/* message area always present */}
+          {/* message area */}
           <p
             className={`text-center transition-opacity duration-700 ${
               visible ? "opacity-100" : "opacity-0"
@@ -90,13 +117,23 @@ const WorkspaceInvitePage: React.FC = () => {
           </p>
 
           {!visible && (
-            <Button
-              onClick={handleAcceptInvite}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? "Accepting..." : "Accept Invitation"}
-            </Button>
+            <>
+              <Button
+                onClick={handleAcceptInvite}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? "Processing..." : "Accept Invitation"}
+              </Button>
+              <Button
+                onClick={handleCancelInvite}
+                disabled={loading}
+                variant="outline"
+                className="w-full mt-2"
+              >
+                {loading ? "Processing..." : "Cancel Invitation"}
+              </Button>
+            </>
           )}
         </CardContent>
       </Card>

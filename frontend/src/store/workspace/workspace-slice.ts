@@ -1,12 +1,18 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import axios from "axios";
 
+interface Invite {
+  token: string;
+  user: any;
+  role: string;
+}
 interface Workspace {
   _id: string;
   name: string;
   description?: string;
   owner: any;
   members: any[];
+  invites?: Invite[];
 }
 
 interface WorkspaceState {
@@ -14,6 +20,9 @@ interface WorkspaceState {
   currentWorkspace?: Workspace;
   projects?: any[];
   loading: boolean;
+  message?: string;
+  error?: string;
+  cancelMessage?: string;
 }
 
 const initialState: WorkspaceState = {
@@ -125,6 +134,17 @@ export const deleteWorkspace = createAsyncThunk(
     return workspaceId;
   }
 );
+export const cancelInvite = createAsyncThunk(
+  "workspace/cancelInvite",
+  async ({ workspaceId, token }: { workspaceId: string; token: string }) => {
+    const { data } = await axios.post(
+      `/api/v1/workspace/${workspaceId}/invite/cancel`,
+      { token },
+      { withCredentials: true }
+    );
+    return { workspaceId, token, message: data.message };
+  }
+);
 
 const workspaceSlice = createSlice({
   name: "workspace",
@@ -165,6 +185,25 @@ const workspaceSlice = createSlice({
           state.currentWorkspace = undefined;
           state.projects = [];
         }
+      })
+      .addCase(cancelInvite.fulfilled, (state, action) => {
+        const { workspaceId, token, message } = action.payload;
+
+        // Remove canceled invite from currentWorkspace.invites if it exists
+        if (
+          state.currentWorkspace &&
+          state.currentWorkspace._id === workspaceId
+        ) {
+          if (state.currentWorkspace.invites) {
+            state.currentWorkspace.invites =
+              state.currentWorkspace.invites.filter(
+                (invite) => invite.token !== token
+              );
+          }
+        }
+
+        // Store a message to show in the UI
+        state.cancelMessage = message;
       });
   },
 });

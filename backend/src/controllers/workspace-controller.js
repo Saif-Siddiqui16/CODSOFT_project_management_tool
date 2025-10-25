@@ -305,3 +305,44 @@ export const deleteWorkspace = asyncHandler(async (req, res) => {
 
   res.status(200).json({ message: "Workspace deleted successfully" });
 });
+
+export const cancelInviteByToken = asyncHandler(async (req, res) => {
+  const { workspaceId, token } = req.body;
+
+  if (!workspaceId || !token) {
+    return res.status(400).json({ message: "workspaceId and token required" });
+  }
+
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace)
+    return res.status(404).json({ message: "Workspace not found" });
+
+  // Check if the requester is owner/admin
+  const requester = workspace.members.find(
+    (m) => m.user.toString() === req.user._id.toString()
+  );
+  if (!requester || !["owner", "admin"].includes(requester.role)) {
+    return res
+      .status(403)
+      .json({ message: "Not authorized to cancel invitations" });
+  }
+
+  const invite = await WorkspaceInvite.findOne({ workspaceId, token });
+  if (!invite) {
+    return res
+      .status(404)
+      .json({ message: "Invitation not found or already used" });
+  }
+
+  await invite.deleteOne();
+
+  await recordActivity(
+    req.user._id,
+    "canceled_invitation",
+    "Workspace",
+    workspaceId,
+    { canceledUser: invite.user }
+  );
+
+  res.status(200).json({ message: "Invitation canceled successfully" });
+});
