@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateWorkspaceCard from "@/components/workspace/CreateWorkspaceCard";
 import { useAppDispatch, useAppSelector } from "@/hooks/hook";
@@ -5,45 +8,55 @@ import {
   fetchProjectProgress,
   fetchProjects,
 } from "@/store/project/project-slice";
-import type { RootState } from "@/store/store";
 import {
   deleteWorkspace,
   fetchWorkspaces,
 } from "@/store/workspace/workspace-slice";
-import { Trash } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import type { RootState } from "@/store/store";
 
 const WorkspacePage = () => {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+
   const { workspaces } = useAppSelector((state: RootState) => state.workspace);
   const { user } = useAppSelector((state: RootState) => state.auth);
   const { projects } = useAppSelector((state: RootState) => state.project);
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
 
   const [workspaceProgress, setWorkspaceProgress] = useState<
     Record<string, number>
   >({});
-  const [loadingProgress, setLoadingProgress] = useState(true);
+  const [loadingProgressMap, setLoadingProgressMap] = useState<
+    Record<string, boolean>
+  >({});
 
+  /** Fetch all workspaces once on mount */
   useEffect(() => {
     dispatch(fetchWorkspaces());
   }, [dispatch]);
 
+  /** Fetch projects for each workspace when workspaces change */
   useEffect(() => {
     if (workspaces.length > 0) {
-      workspaces.forEach((ws) => dispatch(fetchProjects(ws._id)));
+      workspaces.forEach((ws) => {
+        dispatch(fetchProjects(ws._id));
+      });
     }
   }, [workspaces, dispatch]);
 
+  /** Fetch progress for all projects and group by workspace */
   useEffect(() => {
     const fetchAllProgress = async () => {
-      setLoadingProgress(true);
+      if (projects.length === 0) return;
+
+      // mark all workspace progress as loading
+      const wsLoading: Record<string, boolean> = {};
+      workspaces.forEach((ws) => (wsLoading[ws._id] = true));
+      setLoadingProgressMap(wsLoading);
+
       try {
         const allProgressPromises = projects.map(async (project) => {
           const res: any = await dispatch(fetchProjectProgress(project._id));
           return {
-            projectId: project._id,
             workspaceId: project.workspace,
             progress: res.payload?.progress || 0,
           };
@@ -59,31 +72,36 @@ const WorkspacePage = () => {
         });
 
         const avgProgress: Record<string, number> = {};
+        const doneMap: Record<string, boolean> = {};
+
         for (const wsId in progressMap) {
           const arr = progressMap[wsId];
           avgProgress[wsId] = Math.round(
             arr.reduce((a, b) => a + b, 0) / arr.length
           );
+          doneMap[wsId] = false;
         }
 
         setWorkspaceProgress(avgProgress);
-      } finally {
-        setLoadingProgress(false);
+        setLoadingProgressMap(doneMap);
+      } catch (error) {
+        console.error("Error fetching progress:", error);
       }
     };
 
-    if (projects.length > 0) fetchAllProgress();
-  }, [projects, dispatch]);
+    fetchAllProgress();
+  }, [projects, dispatch, workspaces]);
 
+  /** Handle delete with automatic refetch */
   const handleDelete = async (workspaceId: string) => {
     if (window.confirm("Are you sure you want to delete this workspace?")) {
       const resultAction = await dispatch(deleteWorkspace(workspaceId));
-
       if (deleteWorkspace.fulfilled.match(resultAction)) {
         dispatch(fetchWorkspaces());
       }
     }
   };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-6">
@@ -100,6 +118,8 @@ const WorkspacePage = () => {
           {workspaces.map((workspace) => {
             const progress = workspaceProgress[workspace._id] || 0;
             const isOwner = workspace.owner === user?.id;
+            const isLoading = loadingProgressMap[workspace._id];
+
             return (
               <div
                 key={workspace._id}
@@ -109,14 +129,15 @@ const WorkspacePage = () => {
                   <h2 className="font-semibold text-lg">{workspace.name}</h2>
                   <p className="text-gray-500 mt-1">{workspace.description}</p>
 
-                  <div className="w-full bg-gray-200 h-3 rounded mt-4">
+                  <div className="w-full bg-gray-200 h-3 rounded mt-4 overflow-hidden">
                     <div
                       className="bg-blue-600 h-3 rounded transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
+
                   <p className="text-sm text-gray-500 mt-1 text-right">
-                    {loadingProgress ? "Loading..." : `${progress}%`}
+                    {isLoading ? "Loading..." : `${progress}%`}
                   </p>
                 </div>
 
@@ -127,7 +148,7 @@ const WorkspacePage = () => {
                       handleDelete(workspace._id);
                     }}
                     variant="destructive"
-                    className="absolute top-2 right-2  font-semibold"
+                    className="absolute top-2 right-2 font-semibold"
                   >
                     <Trash />
                   </Button>

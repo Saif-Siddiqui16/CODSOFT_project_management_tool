@@ -14,18 +14,20 @@ export interface Task {
   priority: "Low" | "Medium" | "High";
   createdBy?: string;
   dueDate?: string;
-  assignees?: string[];
+  assignees?: (string | { _id: string; name?: string; email?: string })[];
 }
 
 interface TaskState {
   tasks: Record<string, Task[]>;
   loading: boolean;
+  refreshing: boolean;
   error?: string;
 }
 
 const initialState: TaskState = {
   tasks: {},
   loading: false,
+  refreshing: false,
   error: undefined,
 };
 
@@ -197,16 +199,22 @@ const taskSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchTasks.pending, (state) => {
-        state.loading = true;
+      .addCase(fetchTasks.pending, (state, action) => {
+        if ((action.meta.arg as any)?.initial) {
+          state.loading = true; // first fetch
+        } else {
+          state.refreshing = true; // subsequent polling
+        }
         state.error = undefined;
       })
       .addCase(fetchTasks.fulfilled, (state, action) => {
         state.loading = false;
+        state.refreshing = false;
         state.tasks[action.payload.projectId] = action.payload.tasks;
       })
       .addCase(fetchTasks.rejected, (state, action) => {
         state.loading = false;
+        state.refreshing = false;
         state.error = action.payload as string;
       })
       .addCase(createTask.fulfilled, (state, action) => {

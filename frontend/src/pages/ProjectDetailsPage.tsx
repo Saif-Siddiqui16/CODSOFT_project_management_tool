@@ -25,13 +25,13 @@ import {
   updateTaskTitle,
   type Task,
 } from "@/store/task/task-slice";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 
 const ProjectDetailsPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const dispatch = useAppDispatch();
-  const { tasks, loading } = useAppSelector((state) => state.task);
+  const { tasks } = useAppSelector((state) => state.task);
   const { user } = useAppSelector((state) => state.auth);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -46,14 +46,22 @@ const ProjectDetailsPage = () => {
   >([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
-
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (projectId) dispatch(fetchTasks(projectId));
-  }, [projectId, dispatch]);
+  /** ✅ Fetch tasks with polling */
+  const fetchProjectTasks = useCallback(() => {
+    if (!projectId) return;
+    dispatch(fetchTasks(projectId));
+  }, [dispatch, projectId]);
 
+  useEffect(() => {
+    fetchProjectTasks();
+    const interval = setInterval(fetchProjectTasks, 5000);
+    return () => clearInterval(interval);
+  }, [fetchProjectTasks]);
+
+  /** ✅ Fetch project members */
   useEffect(() => {
     if (!projectId) return;
     const fetchMembers = async () => {
@@ -73,26 +81,27 @@ const ProjectDetailsPage = () => {
 
   if (!projectId) return <p>Project not found</p>;
 
-  const projectTasks = projectId ? tasks[projectId] || [] : [];
+  const projectTasks = tasks[projectId] || [];
 
+  /** ✅ Filter tasks for the current user */
   const visibleTasks = projectTasks.filter((task) => {
-    const isAssignee = task.assignees?.includes(user?._id || "");
     const isCreator = task.createdBy === user?._id;
-    return isAssignee || isCreator;
+    const isAssignee = task.assignees?.some((a) =>
+      typeof a === "string" ? a === user?._id : a._id === user?._id
+    );
+    return isCreator || isAssignee;
   });
 
+  /** ✅ Delete task */
   const handleDelete = async (taskId: string) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
     try {
       const res = await dispatch(deleteTask(taskId));
       if (res.meta.requestStatus === "fulfilled") {
         setSuccessMessage("✅ Task deleted successfully!");
-        dispatch(fetchTasks(projectId!));
-      } else {
-        setError("❌ Failed to delete task.");
-      }
+      } else setError("❌ Failed to delete task.");
     } catch {
-      setError("Something went wrong while deleting the task.");
+      setError("❌ Something went wrong while deleting the task.");
     } finally {
       setTimeout(() => {
         setSuccessMessage("");
@@ -101,6 +110,7 @@ const ProjectDetailsPage = () => {
     }
   };
 
+  /** ✅ Open edit dialog */
   const handleEdit = (task: Task) => {
     const isCreator = task.createdBy === user?._id;
 
@@ -112,21 +122,27 @@ const ProjectDetailsPage = () => {
       priority: isCreator ? task.priority : "",
     });
 
-    setSelectedAssignees(task.assignees || []);
+    const assigneeIds =
+      task.assignees?.map((a) => (typeof a === "string" ? a : a._id)) || [];
+    setSelectedAssignees(assigneeIds);
     setOpen(true);
   };
 
+  /** ✅ Toggle assignee selection */
   const toggleAssignee = (id: string) => {
     setSelectedAssignees((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
     );
   };
 
+  /** ✅ Save task updates */
   const handleSave = async () => {
     if (!selectedTask) return;
 
     const isCreator = selectedTask.createdBy === user?._id;
-    const isAssignee = selectedTask.assignees?.includes(user?._id || "");
+    const isAssignee = selectedTask.assignees?.some((a) =>
+      typeof a === "string" ? a === user?._id : a._id === user?._id
+    );
 
     try {
       if (isCreator) {
@@ -160,7 +176,11 @@ const ProjectDetailsPage = () => {
               })
             ),
           JSON.stringify(selectedAssignees) !==
-            JSON.stringify(selectedTask.assignees) &&
+            JSON.stringify(
+              selectedTask.assignees?.map((a) =>
+                typeof a === "string" ? a : a._id
+              )
+            ) &&
             dispatch(
               updateTaskAssignees({
                 taskId: selectedTask._id,
@@ -179,7 +199,6 @@ const ProjectDetailsPage = () => {
 
       setSuccessMessage("✅ Task updated successfully!");
       setOpen(false);
-      dispatch(fetchTasks(projectId!));
     } catch {
       setError("❌ Failed to update the task.");
     } finally {
@@ -192,11 +211,13 @@ const ProjectDetailsPage = () => {
 
   return (
     <div className="p-6 min-h-screen bg-gray-50">
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Project Details</h1>
         <CreateTaskCard projectId={projectId} />
       </div>
 
+      {/* Messages */}
       {(successMessage || error) && (
         <div className="text-center mb-4">
           {successMessage && (
@@ -206,9 +227,8 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
-      {loading ? (
-        <p className="text-gray-600 mt-10 text-center">Loading tasks...</p>
-      ) : visibleTasks.length === 0 ? (
+      {/* Task List */}
+      {visibleTasks.length === 0 ? (
         <p className="text-gray-600 mt-10 text-center">
           No tasks available for you.
         </p>
@@ -216,7 +236,9 @@ const ProjectDetailsPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleTasks.map((task: Task) => {
             const isCreator = task.createdBy === user?._id;
-            const isAssignee = task.assignees?.includes(user?._id || "");
+            const isAssignee = task.assignees?.some((a) =>
+              typeof a === "string" ? a === user?._id : a._id === user?._id
+            );
 
             return (
               <div
@@ -225,7 +247,6 @@ const ProjectDetailsPage = () => {
               >
                 <div className="flex justify-between items-center">
                   <h2 className="font-semibold">{task.title}</h2>
-
                   {(isCreator || isAssignee) && (
                     <Button
                       size="sm"
@@ -235,7 +256,6 @@ const ProjectDetailsPage = () => {
                       Edit
                     </Button>
                   )}
-
                   {isCreator && (
                     <Button
                       size="sm"
@@ -246,11 +266,9 @@ const ProjectDetailsPage = () => {
                     </Button>
                   )}
                 </div>
-
                 {task.description && (
                   <p className="text-gray-500 mt-1">{task.description}</p>
                 )}
-
                 <p className="text-sm text-gray-400 mt-2">
                   Status: {task.status}
                 </p>
@@ -260,12 +278,12 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
+      {/* Edit Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4">
             {selectedTask && selectedTask.createdBy === user?._id ? (
               <>
@@ -281,7 +299,6 @@ const ProjectDetailsPage = () => {
                     }
                   />
                 </div>
-
                 <div>
                   <Label>Description</Label>
                   <Textarea
@@ -294,7 +311,6 @@ const ProjectDetailsPage = () => {
                     }
                   />
                 </div>
-
                 <div>
                   <Label>Status</Label>
                   <select
@@ -312,7 +328,6 @@ const ProjectDetailsPage = () => {
                     <option>Done</option>
                   </select>
                 </div>
-
                 <div>
                   <Label>Priority</Label>
                   <select
@@ -330,7 +345,6 @@ const ProjectDetailsPage = () => {
                     <option>High</option>
                   </select>
                 </div>
-
                 <div>
                   <Label>Assignees</Label>
                   <div className="flex flex-col gap-1 border rounded p-2 max-h-40 overflow-y-auto">
@@ -374,7 +388,6 @@ const ProjectDetailsPage = () => {
               </div>
             )}
           </div>
-
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
