@@ -82,9 +82,9 @@ const ProjectDetailsPage = () => {
   const projectTasks = tasks[projectId] || [];
 
   const visibleTasks = projectTasks.filter((task) => {
-    const isCreator = task.createdBy === user?._id;
-    const isAssignee = task.assignees?.some((a) =>
-      typeof a === "string" ? a === user?._id : a._id === user?._id
+    const isCreator = String(task.createdBy) === String(user?._id);
+    const isAssignee = task.assignees?.some(
+      (a) => String(typeof a === "string" ? a : a._id) === String(user?._id)
     );
     return isCreator || isAssignee;
   });
