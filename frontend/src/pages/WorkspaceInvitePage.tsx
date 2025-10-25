@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { useAppDispatch } from "@/hooks/hook";
 import { acceptInvite } from "@/store/workspace/workspace-slice";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 const WorkspaceInvitePage: React.FC = () => {
@@ -43,6 +43,23 @@ const WorkspaceInvitePage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let timer: number;
+    if (error) {
+      timer = window.setTimeout(() => setError(""), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  useEffect(() => {
+    let timer: number;
+    if (success) {
+      timer = window.setTimeout(() => setSuccess(""), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [success]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-md">
