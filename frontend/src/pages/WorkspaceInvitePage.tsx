@@ -28,6 +28,8 @@ const WorkspaceInvitePage: React.FC = () => {
     }
 
     setLoading(true);
+    setError("");
+    setSuccess("");
     try {
       const response = await dispatch(acceptInvite({ token, workspaceId }));
       if (response.meta.requestStatus === "fulfilled") {
@@ -37,26 +39,24 @@ const WorkspaceInvitePage: React.FC = () => {
           (response.payload as string) || "Failed to accept invitation."
         );
       }
-    } catch (err) {
+    } catch {
       setError("Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Auto-hide error after 5 seconds
   useEffect(() => {
-    let timer: number;
-    if (error) {
-      timer = window.setTimeout(() => setError(""), 5000);
-    }
+    if (!error) return;
+    const timer = setTimeout(() => setError(""), 5000);
     return () => clearTimeout(timer);
   }, [error]);
 
+  // Auto-hide success after 5 seconds
   useEffect(() => {
-    let timer: number;
-    if (success) {
-      timer = window.setTimeout(() => setSuccess(""), 5000);
-    }
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(""), 5000);
     return () => clearTimeout(timer);
   }, [success]);
 
@@ -73,9 +73,19 @@ const WorkspaceInvitePage: React.FC = () => {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 mt-4">
-          {error && <p className="text-red-600 text-center">{error}</p>}
-          {success && <p className="text-green-600 text-center">{success}</p>}
+          {/* Error message */}
+          {error && (
+            <p className="text-red-600 text-center animate-fadeIn">{error}</p>
+          )}
 
+          {/* Success message */}
+          {success && (
+            <p className="text-green-600 text-center animate-fadeIn">
+              {success}
+            </p>
+          )}
+
+          {/* Show button only when no message */}
           {!success && !error && (
             <Button
               onClick={handleAcceptInvite}
