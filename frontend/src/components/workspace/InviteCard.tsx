@@ -25,37 +25,52 @@ const InviteCard: React.FC<InviteCardProps> = ({ workspaceId }) => {
   const [success, setSuccess] = useState("");
   const dispatch = useAppDispatch();
 
+  const showMessage = (message: string, type: "error" | "success") => {
+    if (type === "error") setError(message);
+    else setSuccess(message);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setError("");
+      setSuccess("");
+    }, 3000);
+  };
+
   const handleInvite = async () => {
     if (!email.trim()) {
-      setError("Email is required");
+      showMessage("Email is required", "error");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
-      setSuccess("");
 
       const response = await dispatch(inviteUser({ email, role, workspaceId }));
 
       if (response.meta.requestStatus === "fulfilled") {
-        setSuccess(
-          response.payload?.message || "Invitation sent successfully!"
+        showMessage(
+          response.payload?.message || "Invitation sent successfully!",
+          "success"
         );
         setEmail("");
         setRole("member");
         setOpen(false);
       } else {
-        setError(
-          (response.payload as any)?.message || "Failed to send invitation."
+        showMessage(
+          (response.payload as any)?.message || "Failed to send invitation.",
+          "error"
         );
+        setEmail("");
+        setRole("member");
+        setOpen(false);
       }
     } catch (err) {
-      setError("An unexpected error occurred.");
+      showMessage("An unexpected error occurred.", "error");
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <>
       <Button

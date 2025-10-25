@@ -101,11 +101,11 @@ export const inviteUserToWorkspace = asyncHandler(async (req, res) => {
   const inviterMember = workspace.members.find(
     (m) => m.user.toString() === req.user._id.toString()
   );
+
   if (!inviterMember || !["owner", "admin"].includes(inviterMember.role))
     return res.status(403).json({ message: "Not authorized" });
   const existingUser = await User.findOne({ email });
   if (!existingUser) return res.status(400).json({ message: "User not found" });
-
   const isMember = workspace.members.some(
     (m) => m.user.toString() === existingUser._id.toString()
   );

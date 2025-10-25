@@ -1,31 +1,29 @@
-import nodemailer from "nodemailer";
+import formData from "form-data";
+import Mailgun from "mailgun.js";
 import dotenv from "dotenv";
+
 dotenv.config();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
+// Initialize Mailgun client
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({
+  username: "api",
+  key: process.env.MAILGUN_API_KEY, // from .env or Render env vars
+  url: "https://api.mailgun.net",
 });
 
-transporter.verify((err, success) => {
-  if (err) console.error("Mail server connection error:", err);
-  else console.log("Mail server ready");
-});
-
+// Keep the same sendMail signature
 const sendMail = async ({ to, subject, html }) => {
   try {
-    const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM,
+    const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, {
+      from: process.env.MAILGUN_FROM,
       to,
       subject,
       html,
     });
-    return { ok: true, info };
+    return { ok: true, info: result };
   } catch (error) {
+    console.error("Mailgun Error:", error);
     return { ok: false, error };
   }
 };
