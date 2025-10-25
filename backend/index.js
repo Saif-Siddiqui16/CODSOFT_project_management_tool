@@ -11,9 +11,12 @@ import projectRoutes from "./src/routes/project-route.js";
 import taskRoutes from "./src/routes/task-route.js";
 import errorHandler from "./src/middleware/errorHandler.js";
 import { connectDb } from "./src/config/db.js";
+import path from "path";
 
 dotenv.config();
 const app = express();
+
+const _dirname = path.resolve();
 
 app.use(helmet());
 app.use(express.json());
@@ -43,7 +46,12 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.use(errorHandler);
 
+app.use(express.static(path.join(_dirname, "/frontend/dist")));
+app.use((_, res) => {
+  res.sendFile(path.resolve(_dirname, "frontend", "dist", "index.html"));
+});
+
 app.listen(process.env.PORT, async () => {
   await connectDb();
-  console.log(`✅ Server running on Render (PORT: ${process.env.PORT})`);
+  console.log(`✅ Server running on Render`);
 });
