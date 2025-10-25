@@ -1,6 +1,6 @@
 import { useAppDispatch } from "@/hooks/hook";
 import { inviteUser } from "@/store/workspace/workspace-slice";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -21,19 +21,24 @@ const InviteCard: React.FC<InviteCardProps> = ({ workspaceId }) => {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [visible, setVisible] = useState(false);
+
   const dispatch = useAppDispatch();
+  const timerRef = useRef<number | null>(null);
 
-  const showMessage = (message: string, type: "error" | "success") => {
-    if (type === "error") setError(message);
-    else setSuccess(message);
+  const clearTimer = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
 
-    // Auto-hide after 3 seconds
-    setTimeout(() => {
-      setError("");
-      setSuccess("");
-    }, 3000);
+  const showMessage = (msg: string, type: "error" | "success") => {
+    clearTimer();
+    setIsError(type === "error");
+    setMessage(msg);
+    setVisible(true);
+
+    timerRef.current = window.setTimeout(() => setVisible(false), 5000);
   };
 
   const handleInvite = async () => {
@@ -49,27 +54,25 @@ const InviteCard: React.FC<InviteCardProps> = ({ workspaceId }) => {
 
       if (response.meta.requestStatus === "fulfilled") {
         showMessage(
-          response.payload?.message || "Invitation sent successfully!",
+          (response.payload as any)?.message || "Invitation sent successfully!",
           "success"
         );
         setEmail("");
         setRole("member");
-        setOpen(false);
       } else {
         showMessage(
           (response.payload as any)?.message || "Failed to send invitation.",
           "error"
         );
-        setEmail("");
-        setRole("member");
-        setOpen(false);
       }
-    } catch (err) {
+    } catch {
       showMessage("An unexpected error occurred.", "error");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => clearTimer, []);
 
   return (
     <>
@@ -82,7 +85,7 @@ const InviteCard: React.FC<InviteCardProps> = ({ workspaceId }) => {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md w-[90%] max-w-sm">
           <DialogHeader>
             <DialogTitle>Invite a Member</DialogTitle>
           </DialogHeader>
@@ -108,12 +111,22 @@ const InviteCard: React.FC<InviteCardProps> = ({ workspaceId }) => {
               />
             </div>
 
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-            {success && <p className="text-green-600 text-sm">{success}</p>}
+            {/* Smoothly fading message */}
+            <p
+              className={`text-sm text-center transition-opacity duration-700 ${
+                visible ? "opacity-100" : "opacity-0"
+              } ${isError ? "text-red-600" : "text-green-600"}`}
+            >
+              {message}
+            </p>
           </div>
 
           <DialogFooter className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button onClick={handleInvite} disabled={loading}>
