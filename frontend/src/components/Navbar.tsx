@@ -1,6 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
-import { Link } from "react-router-dom";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -9,15 +7,34 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAppDispatch, useAppSelector } from "@/hooks/hook";
+import { logout, resetVerificationMessage } from "@/store/auth/auth-slice";
 import type { RootState } from "@/store/store";
-import { logout } from "@/store/auth/auth-slice";
+import { Menu } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function Navbar() {
   const { user } = useAppSelector((state: RootState) => state.auth);
   const dispatch = useAppDispatch();
+  const [showMessage, setShowMessage] = useState<string | null>(null);
+
   const handleSignout = async () => {
-    await dispatch(logout());
+    const resultAction = await dispatch(logout());
+    if (logout.fulfilled.match(resultAction)) {
+      setShowMessage(resultAction.payload as string);
+    }
   };
+
+  useEffect(() => {
+    if (showMessage) {
+      const timer = setTimeout(() => {
+        setShowMessage(null);
+        dispatch(resetVerificationMessage());
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showMessage, dispatch]);
+
   return (
     <nav className="w-full border-b bg-white shadow-sm sticky top-0 z-50">
       <div className="container mx-auto flex items-center justify-between p-4">
@@ -74,6 +91,7 @@ export default function Navbar() {
           )}
         </div>
 
+        {/* Mobile menu */}
         <div className="md:hidden">
           <Sheet>
             <SheetTrigger asChild>
@@ -112,6 +130,12 @@ export default function Navbar() {
             </SheetContent>
           </Sheet>
         </div>
+
+        {showMessage && (
+          <div className="absolute top-16 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-md">
+            {showMessage}
+          </div>
+        )}
       </div>
     </nav>
   );

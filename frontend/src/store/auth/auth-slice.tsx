@@ -52,6 +52,21 @@ export const fetchMe = createAsyncThunk("auth/fetchMe", async (_, thunkAPI) => {
   }
 });
 
+export const register = createAsyncThunk(
+  "auth/register",
+  async (data: { name: string; email: string; password: string }, thunkAPI) => {
+    try {
+      const res = await axios.post("/api/v1/auth/register", data);
+      return res.data.message;
+    } catch (err: any) {
+      const message = Array.isArray(err.response?.data?.message)
+        ? err.response.data.message.join(", ")
+        : err.response?.data?.message || "Registration failed";
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 export const login = createAsyncThunk(
   "auth/login",
   async (data: { email: string; password: string }, thunkAPI) => {
@@ -59,38 +74,22 @@ export const login = createAsyncThunk(
       const res = await axios.post("/api/v1/auth/login", data);
       return res.data.user;
     } catch (err: any) {
-      return thunkAPI.rejectWithValue(
-        err.response?.data?.message || "Login failed"
-      );
+      const message = Array.isArray(err.response?.data?.message)
+        ? err.response.data.message.join(", ")
+        : err.response?.data?.message || "Login failed";
+      return thunkAPI.rejectWithValue(message);
     }
   }
 );
-
-export const register = createAsyncThunk(
-  "auth/register",
-  async (data: { name: string; email: string; password: string }, thunkAPI) => {
-    try {
-      await axios.post("/api/v1/auth/register", data);
-      return null;
-    } catch (err: any) {
-      return thunkAPI.rejectWithValue(
-        err.response?.data?.message || "Registration failed"
-      );
-    }
-  }
-);
-
 export const logout = createAsyncThunk("auth/logout", async (_, thunkAPI) => {
   try {
-    await axios.post("/api/v1/auth/logout");
-    return null;
+    const res = await axios.post("/api/v1/auth/logout");
+    return res.data.message;
   } catch (err: any) {
-    return thunkAPI.rejectWithValue(
-      err.response?.data?.message || "Logout failed"
-    );
+    const message = err.response?.data?.message || "Logout failed";
+    return thunkAPI.rejectWithValue(message);
   }
 });
-
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -133,23 +132,27 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = (action.payload as string) || "Login failed";
       })
-
       .addCase(register.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(register.fulfilled, (state) => {
+      .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
+        state.verificationMessage = action.payload as string;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
 
-      .addCase(logout.fulfilled, (state) => {
+      .addCase(logout.fulfilled, (state, action) => {
         state.user = null;
+        state.verificationMessage = action.payload as string;
+      })
+      .addCase(logout.rejected, (state, action) => {
+        state.error = (action.payload as string) || "Logout failed";
       })
       .addCase(verifyEmail.pending, (state) => {
         state.loading = true;

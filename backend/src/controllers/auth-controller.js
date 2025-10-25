@@ -12,8 +12,10 @@ const COOKIE_SAME_SITE = process.env.COOKIE_SAME_SITE || "lax";
 
 export const register = asyncHandler(async (req, res) => {
   const parse = registerSchema.safeParse(req.body);
-  if (!parse.success)
-    return res.status(400).json({ message: parse.error.errors });
+  if (!parse.success) {
+    const message = parse.error.errors.map((e) => e.message).join(", ");
+    return res.status(400).json({ message });
+  }
 
   const { name, email, password } = parse.data;
   const existing = await User.findOne({ email });
@@ -23,6 +25,7 @@ export const register = asyncHandler(async (req, res) => {
 
   const hashed = await bcrypt.hash(password, 10);
   const user = await User.create({ name, email, password: hashed });
+
   const verificationToken = jwt.sign(
     { id: user._id, purpose: "email-verification" },
     process.env.JWT_SECRET,
@@ -32,44 +35,41 @@ export const register = asyncHandler(async (req, res) => {
   await Verification.create({
     userId: user._id,
     token: verificationToken,
-    expiresAt: new Date(Date.now() + 1 * 60 * 60 * 1000),
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
   });
 
   const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
   const emailBody = `<p>Click <a href="${verificationLink}">here</a> to verify your email</p>`;
-  const emailSubject = "Verify your email";
 
   const isEmailSent = await sendMail({
     to: email,
-    subject: emailSubject,
+    subject: "Verify your email",
     html: emailBody,
   });
-  if (!isEmailSent) {
-    return res.status(500).json({
-      message: "Failed to send verification email",
-    });
-  }
+  if (!isEmailSent)
+    return res
+      .status(500)
+      .json({ message: "Failed to send verification email" });
 
-  res.status(201).json({
-    message:
-      "Verification email sent to your email. Please check and verify your account.",
-  });
+  res
+    .status(201)
+    .json({ message: "Verification email sent. Please check your inbox." });
 });
-
 export const login = asyncHandler(async (req, res) => {
   const parse = loginSchema.safeParse(req.body);
-  if (!parse.success)
-    return res.status(400).json({ message: parse.error.errors });
+  if (!parse.success) {
+    const message = parse.error.errors.map((e) => e.message).join(", ");
+    return res.status(400).json({ message });
+  }
 
   const { email, password } = parse.data;
   const user = await User.findOne({ email });
   if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
   if (!user.isEmailVerified) {
-    return res.status(400).json({
-      message:
-        "Email not verified. Please check your email for the verification link.",
-    });
+    return res
+      .status(400)
+      .json({ message: "Email not verified. Please check your email." });
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password || "");
@@ -87,11 +87,13 @@ export const login = asyncHandler(async (req, res) => {
     maxAge: 1000 * 60 * 60 * 24 * 7,
     path: "/",
   });
+
   user.lastLogin = new Date();
   await user.save();
 
   res.json({ user: { id: user._id, name: user.name, email: user.email } });
 });
+
 export const logout = asyncHandler(async (req, res) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,

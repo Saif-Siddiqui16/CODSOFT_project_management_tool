@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { useAppDispatch } from "@/hooks/hook";
-import { login, register } from "@/store/auth/auth-slice";
+import { useAppDispatch, useAppSelector } from "@/hooks/hook";
+import {
+  login,
+  register,
+  resetError,
+  resetVerificationMessage,
+} from "@/store/auth/auth-slice";
 
 interface AuthFormProps {
   type: "login" | "register";
@@ -15,9 +20,27 @@ export default function AuthForm({ type }: AuthFormProps) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
+  const { error, verificationMessage } = useAppSelector((state) => state.auth);
+
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => dispatch(resetError()), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, dispatch]);
+
+  useEffect(() => {
+    if (verificationMessage) {
+      const timer = setTimeout(
+        () => dispatch(resetVerificationMessage()),
+        5000
+      );
+      return () => clearTimeout(timer);
+    }
+  }, [verificationMessage, dispatch]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -25,7 +48,6 @@ export default function AuthForm({ type }: AuthFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -36,8 +58,6 @@ export default function AuthForm({ type }: AuthFormProps) {
 
         if (login.fulfilled.match(resultAction)) {
           navigate("/");
-        } else if (login.rejected.match(resultAction)) {
-          setError(resultAction.payload as string);
         }
       } else {
         const resultAction = await dispatch(
@@ -50,12 +70,8 @@ export default function AuthForm({ type }: AuthFormProps) {
 
         if (register.fulfilled.match(resultAction)) {
           navigate("/login");
-        } else if (register.rejected.match(resultAction)) {
-          setError(resultAction.payload as string);
         }
       }
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -113,6 +129,12 @@ export default function AuthForm({ type }: AuthFormProps) {
 
             {error && (
               <p className="text-sm text-red-600 text-center">{error}</p>
+            )}
+
+            {verificationMessage && (
+              <p className="text-sm text-green-600 text-center">
+                {verificationMessage}
+              </p>
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
