@@ -75,12 +75,15 @@ const WorkspacePage = () => {
     if (projects.length > 0) fetchAllProgress();
   }, [projects, dispatch]);
 
-  const handleDelete = (workspaceId: string) => {
+  const handleDelete = async (workspaceId: string) => {
     if (window.confirm("Are you sure you want to delete this workspace?")) {
-      dispatch(deleteWorkspace(workspaceId));
+      const resultAction = await dispatch(deleteWorkspace(workspaceId));
+
+      if (deleteWorkspace.fulfilled.match(resultAction)) {
+        dispatch(fetchWorkspaces());
+      }
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-6">
