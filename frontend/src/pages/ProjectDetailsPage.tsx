@@ -49,7 +49,6 @@ const ProjectDetailsPage = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
 
-  /** ✅ Fetch tasks with polling */
   const fetchProjectTasks = useCallback(() => {
     if (!projectId) return;
     dispatch(fetchTasks(projectId));
@@ -61,7 +60,6 @@ const ProjectDetailsPage = () => {
     return () => clearInterval(interval);
   }, [fetchProjectTasks]);
 
-  /** ✅ Fetch project members */
   useEffect(() => {
     if (!projectId) return;
     const fetchMembers = async () => {
@@ -83,7 +81,6 @@ const ProjectDetailsPage = () => {
 
   const projectTasks = tasks[projectId] || [];
 
-  /** ✅ Filter tasks for the current user */
   const visibleTasks = projectTasks.filter((task) => {
     const isCreator = task.createdBy === user?._id;
     const isAssignee = task.assignees?.some((a) =>
@@ -92,7 +89,6 @@ const ProjectDetailsPage = () => {
     return isCreator || isAssignee;
   });
 
-  /** ✅ Delete task */
   const handleDelete = async (taskId: string) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
     try {
@@ -110,7 +106,6 @@ const ProjectDetailsPage = () => {
     }
   };
 
-  /** ✅ Open edit dialog */
   const handleEdit = (task: Task) => {
     const isCreator = task.createdBy === user?._id;
 
@@ -128,14 +123,12 @@ const ProjectDetailsPage = () => {
     setOpen(true);
   };
 
-  /** ✅ Toggle assignee selection */
   const toggleAssignee = (id: string) => {
     setSelectedAssignees((prev) =>
       prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
     );
   };
 
-  /** ✅ Save task updates */
   const handleSave = async () => {
     if (!selectedTask) return;
 
@@ -211,13 +204,11 @@ const ProjectDetailsPage = () => {
 
   return (
     <div className="p-6 min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Project Details</h1>
         <CreateTaskCard projectId={projectId} />
       </div>
 
-      {/* Messages */}
       {(successMessage || error) && (
         <div className="text-center mb-4">
           {successMessage && (
@@ -227,7 +218,6 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
-      {/* Task List */}
       {visibleTasks.length === 0 ? (
         <p className="text-gray-600 mt-10 text-center">
           No tasks available for you.
@@ -278,7 +268,6 @@ const ProjectDetailsPage = () => {
         </div>
       )}
 
-      {/* Edit Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

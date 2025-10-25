@@ -29,12 +29,10 @@ const WorkspacePage = () => {
     Record<string, boolean>
   >({});
 
-  /** Fetch all workspaces once on mount */
   useEffect(() => {
     dispatch(fetchWorkspaces());
   }, [dispatch]);
 
-  /** Fetch projects for each workspace when workspaces change */
   useEffect(() => {
     if (workspaces.length > 0) {
       workspaces.forEach((ws) => {
@@ -43,12 +41,10 @@ const WorkspacePage = () => {
     }
   }, [workspaces, dispatch]);
 
-  /** Fetch progress for all projects and group by workspace */
   useEffect(() => {
     const fetchAllProgress = async () => {
       if (projects.length === 0) return;
 
-      // mark all workspace progress as loading
       const wsLoading: Record<string, boolean> = {};
       workspaces.forEach((ws) => (wsLoading[ws._id] = true));
       setLoadingProgressMap(wsLoading);
@@ -92,7 +88,6 @@ const WorkspacePage = () => {
     fetchAllProgress();
   }, [projects, dispatch, workspaces]);
 
-  /** Handle delete with automatic refetch */
   const handleDelete = async (workspaceId: string) => {
     if (window.confirm("Are you sure you want to delete this workspace?")) {
       const resultAction = await dispatch(deleteWorkspace(workspaceId));
